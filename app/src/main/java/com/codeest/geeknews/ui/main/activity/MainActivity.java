@@ -1,6 +1,5 @@
 package com.codeest.geeknews.ui.main.activity;
 
-import android.Manifest;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
@@ -28,26 +27,23 @@ import com.codeest.geeknews.ui.gold.fragment.GoldMainFragment;
 import com.codeest.geeknews.ui.main.fragment.AboutFragment;
 import com.codeest.geeknews.ui.main.fragment.LikeFragment;
 import com.codeest.geeknews.ui.main.fragment.SettingFragment;
+import com.codeest.geeknews.ui.vtex.fragment.VtexMainFragment;
 import com.codeest.geeknews.ui.wechat.fragment.WechatMainFragment;
 import com.codeest.geeknews.ui.zhihu.fragment.ZhihuMainFragment;
 import com.codeest.geeknews.util.SharedPreferenceUtil;
 import com.codeest.geeknews.util.SnackbarUtil;
 import com.codeest.geeknews.util.SystemUtil;
-import com.codeest.geeknews.util.ToastUtil;
 import com.miguelcatalan.materialsearchview.MaterialSearchView;
-
-import java.util.List;
+import com.tbruyelle.rxpermissions.RxPermissions;
 
 import butterknife.BindView;
 import me.yokeyword.fragmentation.SupportFragment;
-import pub.devrel.easypermissions.AfterPermissionGranted;
-import pub.devrel.easypermissions.EasyPermissions;
 
 /**
  * Created by codeest on 16/8/9.
  */
 
-public class MainActivity extends BaseActivity<MainPresenter> implements MainContract.View, EasyPermissions.PermissionCallbacks{
+public class MainActivity extends BaseActivity<MainPresenter> implements MainContract.View{
 
     @BindView(R.id.drawer)
     DrawerLayout mDrawerLayout;
@@ -63,13 +59,12 @@ public class MainActivity extends BaseActivity<MainPresenter> implements MainCon
     GankMainFragment mGankFragment;
     WechatMainFragment mWechatFragment;
     GoldMainFragment mGoldFragment;
+    VtexMainFragment mVtexFragment;
     LikeFragment mLikeFragment;
     SettingFragment mSettingFragment;
     AboutFragment mAboutFragment;
     MenuItem mLastMenuItem;
     MenuItem mSearchMenuItem;
-
-    private static final int RC_WRITE = 100;
 
     private int hideFragment = Constants.TYPE_ZHIHU;
     private int showFragment = Constants.TYPE_ZHIHU;
@@ -110,6 +105,7 @@ public class MainActivity extends BaseActivity<MainPresenter> implements MainCon
         mGankFragment = new GankMainFragment();
         mWechatFragment = new WechatMainFragment();
         mGoldFragment = new GoldMainFragment();
+        mVtexFragment = new VtexMainFragment();
         mLikeFragment = new LikeFragment();
         mSettingFragment = new SettingFragment();
         mAboutFragment = new AboutFragment();
@@ -117,7 +113,7 @@ public class MainActivity extends BaseActivity<MainPresenter> implements MainCon
         mDrawerToggle.syncState();
         mDrawerLayout.addDrawerListener(mDrawerToggle);
         mLastMenuItem = mNavigationView.getMenu().findItem(R.id.drawer_zhihu);
-        loadMultipleRootFragment(R.id.fl_main_content,0,mZhihuFragment,mWechatFragment,mGankFragment,mGoldFragment,mLikeFragment,mSettingFragment,mAboutFragment);
+        loadMultipleRootFragment(R.id.fl_main_content,0,mZhihuFragment,mWechatFragment,mGankFragment,mGoldFragment,mVtexFragment,mLikeFragment,mSettingFragment,mAboutFragment);
         mNavigationView.setNavigationItemSelectedListener(new NavigationView.OnNavigationItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(MenuItem menuItem) {
@@ -136,6 +132,10 @@ public class MainActivity extends BaseActivity<MainPresenter> implements MainCon
                         break;
                     case R.id.drawer_gold:
                         showFragment = Constants.TYPE_GOLD;
+                        mSearchMenuItem.setVisible(false);
+                        break;
+                    case R.id.drawer_vtex:
+                        showFragment = Constants.TYPE_VTEX;
                         mSearchMenuItem.setVisible(false);
                         break;
                     case R.id.drawer_setting:
@@ -241,6 +241,8 @@ public class MainActivity extends BaseActivity<MainPresenter> implements MainCon
                 return mWechatFragment;
             case Constants.TYPE_GOLD:
                 return mGoldFragment;
+            case Constants.TYPE_VTEX:
+                return mVtexFragment;
             case Constants.TYPE_LIKE:
                 return mLikeFragment;
             case Constants.TYPE_SETTING:
@@ -261,6 +263,8 @@ public class MainActivity extends BaseActivity<MainPresenter> implements MainCon
                 return R.id.drawer_wechat;
             case Constants.TYPE_GOLD:
                 return R.id.drawer_gold;
+            case Constants.TYPE_VTEX:
+                return R.id.drawer_vtex;
             case Constants.TYPE_LIKE:
                 return R.id.drawer_like;
             case Constants.TYPE_SETTING:
@@ -280,38 +284,18 @@ public class MainActivity extends BaseActivity<MainPresenter> implements MainCon
         builder.setPositiveButton("马上更新", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
-                requestPermission();
+                checkPermissions();
             }
         });
         builder.show();
     }
 
-    @AfterPermissionGranted(RC_WRITE)
-    public void requestPermission() {
-        String[] perms = {Manifest.permission.WRITE_EXTERNAL_STORAGE};
-        if (EasyPermissions.hasPermissions(this, perms)) {
-            startService(new Intent(mContext, UpdateService.class));
-        } else {
-            EasyPermissions.requestPermissions(this, "下载应用需要文件写入权限哦~",
-                    RC_WRITE, perms);
-        }
+    @Override
+    public void startDownloadService() {
+        startService(new Intent(mContext, UpdateService.class));
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        EasyPermissions.onRequestPermissionsResult(requestCode, permissions, grantResults, this);
-    }
-
-    @Override
-    public void onPermissionsGranted(int requestCode, List<String> perms) {
-        if (RC_WRITE == requestCode) {
-            startService(new Intent(mContext, UpdateService.class));
-        }
-    }
-
-    @Override
-    public void onPermissionsDenied(int requestCode, List<String> perms) {
-        ToastUtil.shortShow("取消更新 T T");
+    public void checkPermissions() {
+        mPresenter.checkPermissions(new RxPermissions(this));
     }
 }
